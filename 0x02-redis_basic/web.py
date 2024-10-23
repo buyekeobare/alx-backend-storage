@@ -6,7 +6,7 @@ import redis
 import requests
 from functools import wraps
 
-redis = redis.Redis()
+r = redis.Redis()
 
 
 def wrap_requests(method):
@@ -15,22 +15,22 @@ def wrap_requests(method):
     def wrapper(url):
         """wrapper decorator function"""
         key = "cached:" + url
-        cached_response = redis.get(key)
-        if cached_response:
-            return cached_response.decode("utf-8")
+        cached_value = r.get(key)
+        if cached_value:
+            return cached_value.decode("utf-8")
 
             # Get new content and update cache
         key_count = "count:" + url
-        response = method(url)
+        html_content = method(url)
 
-        redis.incr(key_count)
-        redis.set(key, response, ex=10)
-        redis.expire(key, 10)
-        return response
+        r.incr(key_count)
+        r.set(key, html_content, ex=10)
+        r.expire(key, 10)
+        return html_content
     return wrapper
 
 
-@wrap_requests
+@wrapper_requests
 def get_page(url: str) -> str:
     """get_page"""
     results = requests.get(url)
