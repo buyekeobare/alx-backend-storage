@@ -1,41 +1,34 @@
 #!/usr/bin/env python3
-"""Expiring web cache module"""
-
+""" expiring web cache module """
 
 import redis
 import requests
+from typing import Callable
 from functools import wraps
 
-r = redis.Redis()
+redis = redis.Redis()
 
 
-def wrap_requests(method):
-    """Wrapper decorator for get_page function"""
-    @wraps(method)
+def wrap_requests(fn: Callable) -> Callable:
+    """ Decorator wrapper """
+
+    @wraps(fn)
     def wrapper(url):
-        """wrapper decorator function"""
-        key = "cached:" + url
-        cached_value = r.get(key)
-        if cached_value:
-            return cached_value.decode("utf-8")
+        """ Wrapper for decorator guy """
+        redis.incr(f"count:{url}")
+        cached_response = redis.get(f"cached:{url}")
+        if cached_response:
+            return cached_response.decode('utf-8')
+        result = fn(url)
+        redis.setex(f"cached:{url}", 10, result)
+        return result
 
-            # Get new content and update cache
-        key_count = "count:" + url
-        html_content = method(url)
-
-        r.incr(key_count)
-        r.set(key, html_content, ex=10)
-        r.expire(key, 10)
-        return html_content
     return wrapper
 
 
-@wrapper_requests
+@wrap_requests
 def get_page(url: str) -> str:
-    """get_page"""
-    results = requests.get(url)
-    return results.text
-
-
-if __name__ == "__main__":
-    get_page('http://slowwly.robertomurray.co.uk')
+    """get page self descriptive
+    """
+    response = requests.get(url)
+    return response.text
